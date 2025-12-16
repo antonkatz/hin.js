@@ -80,9 +80,9 @@ export function hinj(starting = undefined) {
     }
 
     // fn[STARTING_VALUE] = builder[STARTING_VALUE]
-    fn.asSubCommand = (_t, a, p) => {
-      return builder.asCmd(true)
-    }
+    // fn.asSubCommand = (_t, a, p) => {
+    //   return builder.asCmd(true)
+    // }
     return fn
   }
 
@@ -90,9 +90,10 @@ export function hinj(starting = undefined) {
 
     if (wfn[ACCESSOR]) {
       builder[HINGES_ANCESTRY_PROP] = [...builder[HINGES_ANCESTRY_PROP], ...wfn[HINGES_ANCESTRY_PROP]]
-      wfn = wfn[RAW_STACK]
-      if (wfn.asSubCommand) {
-        wfn = wfn.asSubCommand()
+      // wfn might be wrapped in a `group` or might be a raw `hinj`
+      wfn = wfn[RAW_STACK] || wfn
+      if (wfn.asCmd) {
+        wfn = wfn.asCmd(true) // make a subcommand
       }
       
       if (!wfn) throw new Error('Must be a function')
@@ -129,18 +130,22 @@ export function hinj(starting = undefined) {
   builder.async = (wfn) => {
 
     if (wfn[ACCESSOR]) {
-      builder[HINGES_ANCESTRY_PROP] = [...builder[HINGES_ANCESTRY_PROP], ...wfn[HINGES_ANCESTRY_PROP]]
+      builder[HINGES_ANCESTRY_PROP] = [
+        ...builder[HINGES_ANCESTRY_PROP],
+        ...wfn[HINGES_ANCESTRY_PROP],
+      ];
       if (wfn[STARTING_VALUE]) {
-        builder[STARTING_VALUE] = wfn[STARTING_VALUE]
+        builder[STARTING_VALUE] = wfn[STARTING_VALUE];
       }
 
-      wfn = wfn[RAW_STACK]
+      // wfn might be wrapped in a `group` or might be a raw `hinj`
+      wfn = wfn[RAW_STACK] || wfn;
 
-      if (wfn.asSubCommand) {
-        wfn = wfn.asSubCommand()
+      if (wfn.asCmd) {
+        wfn = wfn.asCmd(true); // make a subcommand
       }
 
-      if (!wfn) throw new Error('Must be a function')
+      if (!wfn) throw new Error("Must be a function");
     }
 
     if (!stack) {
