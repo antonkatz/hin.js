@@ -2,6 +2,8 @@
 ![image](readme-header.png)
 **A minimalist framework for building prototypes that scale using articulating components**
 
+States and $Pipes.
+
 <sub>* *Hin.JS* comes from a [lineage of experimental frameworks](#lineage) inspired by F# and is pure vanilla JavaScript!
 
 ## Just 4 methods that give you: 
