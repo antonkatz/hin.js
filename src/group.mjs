@@ -84,6 +84,11 @@ function processExports(exports, ofType) {
             fn[HINGES_ANCESTRY_PROP] = v[HINGES_ANCESTRY_PROP]
             fn[ACCESSOR] = v[ACCESSOR]
             fn[IS_ASYNC] = v[IS_ASYNC]
+            fn[STARTING_VALUE] = v[STARTING_VALUE]
+
+            // if (v[STARTING_VALUE]) {
+            //   debugger
+            // }
 
             fn.has = (T) => {
               return isOfType(T, fn[ACCESSOR])
