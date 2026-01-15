@@ -91,7 +91,10 @@ export function hinj(starting = undefined) {
     // fn.asSubCommand = (_t, a, p) => {
     //   return builder.asCmd(true)
     // }
+    fn.asCmd = builder.asCmd;
+
     return fn;
+    // return builder;
   };
 
   builder.sync = (wfn) => {
