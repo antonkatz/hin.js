@@ -10,3 +10,6 @@ export function hinj(starting?: any): Hinj
 export function group<T extends object>(exports: T): T & {
     (P?: Instance) : Instance;
 }
+
+type Hinjs = Hinj
+export function hinjs(starting?: any): Hinjs
