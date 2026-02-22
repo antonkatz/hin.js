@@ -6,7 +6,7 @@ States and $Pipes.
 
 <sub>* *Hin.JS* comes from a [lineage of experimental frameworks](#lineage) inspired by F# and is pure vanilla JavaScript!
 
-## Just 4 methods that give you: 
+## In just 5 methods you get: 
 - **Type Safety** without the TypeScript Tax
 - **Dependency Injection** without the hassle
 - **Reactive state management** that is safe and traceable
@@ -17,25 +17,25 @@ States and $Pipes.
 ## Hin.JS vs Classes
 | **Concept**                | **JavaScript Class**                                           | **Hin.JS Group**                                                                          |
 | -------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Definition**             | `class Person { constructor() { this.name = "Alice" } }`       | `const Person = group({ name: hinj("Alice") })`                                           |
+| **Definition**             | `class Person { constructor() { this.name = "Alice" } }`       | `const Person = group({ name: state("Alice") })`                                           |
 | **Instantiation**          | `const p = new Person()`                                       | `const p = Person()`                                                                      |
 | **Get / set values**       | `p.name = "Bob"` and `console.log(p.name)`                     | `await Person.name(p, "Bob")` and `console.log(Person.name(p))`                                        |
 | **Internal state**         | Stored as mutable fields on the instance (`this`)              | Stored under hidden Symbols, only accessed via property functions                         |
 | **Side effects on change** | Must be implemented manually with setters or Proxies           | Use `.sync()` and `.async()` for traceable, layered side effects                          |
-| **Default / lazy values**  | Set in constructor or assigned later                           | Use `hinj("value")` for static, or `hinj((T) => ...)` for lazy-on-access defaults         |
+| **Default / lazy values**  | Set in constructor or assigned later                           | Use `state("value")` for static, or `state((T) => ...)` for lazy-on-access defaults         |
 | **Dependency injection**   | Manual wiring or external libraries (e.g., Inversify)          | Built-in: access shared context through parent groups automatically                       |
-| **Method definition**      | Class methods or arrow functions, `this`-bound                 | Define stateless `$methods` using `hinj().async(...)`                                     |
-| **Extensibility**          | Inherit with `extends`, often deep and fragile                 | Use `group({ ...Base, newProp })`; extend property behavior explicitly via `.sync(hinjA)` |
+| **Pipe definition**      | Class pipes or arrow functions, `this`-bound                 | Define stateless `$pipes` using `state().async(...)`                                     |
+| **Extensibility**          | Inherit with `extends`, often deep and fragile                 | Use `group({ ...Base, newProp })`; extend property behavior explicitly via `.sync(stateA)` |
 | **Type safety**            | Optional via TypeScript, often requires additional boilerplate | Getters/Setters are always typed, eg. `Person.name(p)`         |
 
 <br>
 
 # 🧩 Key Concepts
 ### `group({...})` Creates a factory that builds a stateful instance.
-All properties are defined using `hinj()`.
+All properties are defined using `state()`.
 ```js
 const MyGroup = group({
-  prop: hinj("default")
+  prop: state("default")
 })
 ```
 - Instantiating: `const g = MyGroup()`
@@ -44,7 +44,7 @@ const MyGroup = group({
 
 All state is stored internally using Symbols — instance objects (`g`) do not expose properties directly.
 
-### `hinj([default])` Creates a property function.
+### `state([default])` Creates a property function.
 This function has 2 modes
 ```js
 // Getter mode
@@ -53,16 +53,16 @@ MyGroup.property(instance) // → current value
 MyGroup.property(instance, newValue)
 ```
 Supports:
-- Static defaults: hinj("value")
-- Lazy defaults: hinj((T) => computeSomething(T))
+- Static defaults: state("value")
+- Lazy defaults: state((T) => computeSomething(T))
  
-⚠️ Avoid nesting functions like hinj(() => (T) => ...) — only use hinj((T) => ...).
+⚠️ Avoid nesting functions like state(() => (T) => ...) — only use state((T) => ...).
 
 ### 🔁 Reactive Layers
 #### `.sync(fn)`
 
 ```js
-count: hinj().sync((T, value) => console.log("Updated:", value))
+count: state().sync((T, value) => console.log("Updated:", value))
 ```
 
 - Called every time a value is set.
@@ -74,7 +74,7 @@ count: hinj().sync((T, value) => console.log("Updated:", value))
 
 #### `.async(fn)`
 ```js
-count: hinj().async(async (T, value) => {
+count: state().async(async (T, value) => {
   await sendToServer(value)
 })
 ```
@@ -89,11 +89,11 @@ count: hinj().async(async (T, value) => {
 ## Basic Example
 
 ```js
-import {hinj, group} from 'hin.js'
+import {state, group} from 'hin.js'
 
 const Database = group({
-  connectionUrl: hinj(process.env.CONNECTION_URL),
-  sql: hinj(
+  connectionUrl: state(process.env.CONNECTION_URL),
+  sql: state(
       /* setting lazy, default value */ 
       T => {
         const url = Database.connectUrl(T)
@@ -103,7 +103,7 @@ const Database = group({
 })
 
 const Server = group({
-  $handleIndex: hinj()
+  $handleIndex: state()
       .async(await (T, {req, res}) => {
         const i = Index(T) // creating a new instance of Index
                            // and setting this instnace of Server as the parent
@@ -118,8 +118,8 @@ const Server = group({
 })
 
 const Index = group({
-  list: hinj(),
-  $load: hinj()
+  list: state(),
+  $load: state()
       .async(await T => {
         const sql = Database.sql(T) // dependency injection at work
         const list = await sql`SELECT path FROM files`
@@ -130,7 +130,7 @@ const Index = group({
 // Initializing
 const db = Database()
 const server = Server(db) // Database becomes the parent of Server
-                          // Now all hinj functions in `server` instance have access to `db` through dependency injection
+                          // Now all state functions in `server` instance have access to `db` through dependency injection
 
 // Running
 Server.$handleIndex(server, {req, res /* provided by Express.js */})
@@ -139,7 +139,7 @@ Server.$handleIndex(server, {req, res /* provided by Express.js */})
 <br>
 
 # In-depth 
-## Stateful Properties vs Stateless Methods
+## Stateful Properties vs Stateless Pipes
 ### 💎 Stateful Properties
 
 These are the most common kind: **they store a value internally** (under a Symbol).
@@ -151,10 +151,10 @@ When a setter is executed (or a getter is called and a default value is set) the
 Default values are evaluated first. Then sync() and async() layers run as a result of setting the value. If a getter is called when no value is set, and the default value is used, all the layers are executed before the (default) value is returned. **The most recently set value is cached and returned on read**.
 
 ```js
-import { group, hinj } from "hin.js"
+import { group, state } from "hin.js"
 
 const State = group({
-  value: hinj("initial")
+  value: state("initial")
     .sync((T, v) => {
       console.log("Layer 1 (sync):", v)
     })
@@ -189,25 +189,25 @@ Layer 3 (sync): hello
 */
 ```
 
-### ⚡ Stateless Methods
+### ⚡ Stateless Pipes
 
-These **do not** store values — they are often used for methods or triggers. A method must have its name (key in the object passed to `group()`) start with `$`.
+These **do not** store values — they are often used for pipes or triggers. A pipe must have its name (key in the object passed to `group()`) start with `$`.
 
 They run in the reverse order:
 > sync() / async() layers → Default/Return value (if any)
 
 This reversal is subtle yet important when the default is a function.
 
-The default is used as a **return value**, not as the initial value to store. This means you can model "pure functions" using stateless hinj — like `() => result`.
+The default is used as a **return value**, not as the initial value to store. This means you can model "pure functions" using stateless pipe — like `() => result`.
 
 ```js
-import { group, hinj } from "hin.js"
+import { group, state } from "hin.js"
 
 // External dependency: Currency conversion group
 const CurrencyAPI = group({
-  rate: hinj(1.3), // default fallback rate
+  rate: state(1.3), // default fallback rate
 
-  $fetchRate: hinj().async(async (T, { from, to }) => {
+  $fetchRate: pipe().async(async (T, { from, to }) => {
     try {
       const res = await fetch(`https://api.exchangerate.host/convert?from=${from}&to=${to}`)
       const data = await res.json()
@@ -220,14 +220,14 @@ const CurrencyAPI = group({
 
 // Main business group: Invoice
 const Invoice = group({
-  lineItems: hinj(() => [
+  lineItems: state(() => [
     { amount: 100, tax: 15, discount: 10 },
     { amount: 200, tax: 30, discount: 0 },
   ]),
 
-  currency: hinj("USD"),
+  currency: state("USD"),
 
-  $convertInvoiceTotals: hinj((T, { from, to }) => {
+  $convertInvoiceTotals: state((T, { from, to }) => {
     const items = Invoice.lineItems(T)
     const rate = CurrencyAPI.rate(T)
 
@@ -281,7 +281,7 @@ Summary: {
 
 If your default is a function that should produce input to the rest of the chain (e.g., computed state), use a stateful property.
 
-If your default is meant to be the final output (like a return value), use a stateless method.
+If your default is meant to be the final output (like a return value), use a stateless pipe.
 
 | Feature          | **Stateful**                  | **Stateless**             |
 | ---------------- | ----------------------------- | ------------------------- |
@@ -289,17 +289,17 @@ If your default is meant to be the final output (like a return value), use a sta
 | Used for…        | Reactive state, configuration | Actions, computed values  |
 | Execution order  | `default → sync / async`      | `sync / async → default/return value`  |
 | Memoized output? | ✅ Yes              | ❌ No                      |
-| Access pattern   | `Group.prop(T)`               | `Group.$method(T, [input])` |
-| Closest analogy  | State variable                | Pure function / method    |
+| Access pattern   | `Group.prop(T)`               | `Group.$pipe(T, [input])` |
+| Closest analogy  | State variable                | Pure function / pipe    |
 
 ## 🧬 Inheritance in Hin.JS
 
-Hin.JS allows **additive inheritance** of both properties and behavior via plain object spread (`...`). Unlike class-based inheritance which risks the fragile base class problem, Hin.JS encourages explicit, modular, and composable design. **Overrides are not allowed** for the exception of the default/return value, thus every layer defined in the base `hinj` is executed when extended.
+Hin.JS allows **additive inheritance** of both properties and behavior via plain object spread (`...`). Unlike class-based inheritance which risks the fragile base class problem, Hin.JS encourages explicit, modular, and composable design. **Overrides are not allowed** for the exception of the default/return value, thus every layer defined in the base `state` is executed when extended.
 
 You can inherit:
 
 - Property definitions from another group
-- Behavior layers of a specific property using `.sync()` and `.async()` chained on parent `hinj`
+- Behavior layers of a specific property using `.sync()` and `.async()` chained on parent `state`
 
 ### Property Inheritance via `group`
 
@@ -307,13 +307,13 @@ This merges all properties from a base group into a new group. You can also pick
 
 ```js
 const Base = group({
-  name: hinj("Anonymous"),
-  age: hinj(0),
+  name: state("Anonymous"),
+  age: state(0),
 })
 
 const Extended = group({
   ...Base,
-  city: hinj("Halifax")
+  city: state("Halifax")
 })
 
 const p = Extended()
@@ -323,10 +323,10 @@ console.log(Extended.city(p)) // "Halifax"
 
 ### Behavior Inheritance via Chaining
 
-Use `.sync(hinjX)` or `.async(hinjX)` to extend behavior from an existing `hinj` definition. This allows you to build on previously defined reactive logic.
+Use `.sync(stateX)` or `.async(stateX)` to extend behavior from an existing `state` definition. This allows you to build on previously defined reactive logic.
 
 ```js
-const logName = hinj()
+const logName = state()
   .sync((T, value) => console.log("Base name set to:", value))
 
 const Base = group({
@@ -334,7 +334,7 @@ const Base = group({
 })
 
 const Extended = group({
-  name: hinj()
+  name: state()
     .sync(Base.name) // carry over base behavior
     // you could also use .sync(logName) for the same effect
     .sync((T, value) => console.log("Extended name logic:", value))
@@ -350,16 +350,16 @@ Extended.name(p, "Alice")
 
 ### Overriding Default Values
 
-You can override a default when extending a group by simply redefining the hinj() with a new default (don't forget to tag the base `hinj` in a `sync` or `async` layer):
+You can override a default when extending a group by simply redefining the state() with a new default (don't forget to tag the base `state` in a `sync` or `async` layer):
 
 ```js
 const Person = group({
-  name: hinj("Anonymous"),
+  name: state("Anonymous"),
 })
 
 const Admin = group({
   ...Person,
-  name: hinj("Superuser") // overrides default
+  name: state("Superuser") // overrides default
         .sync(Person.name) // lets Hin.JS know that you're extending Person.name
         // calling .async(Person.name) has the same effect regarding inheritance. Regular sync vs async promise resolution behaviour applies.
 })
@@ -375,12 +375,12 @@ Failing to declare that `Admin.name` extends `Person.name` with a `sync` or `asy
 
 ```js
 const Person = group({
-  name: hinj("Anonymous"),
+  name: state("Anonymous"),
 })
 
 const Admin = group({
   ...Person,
-  name: hinj("Superuser")
+  name: state("Superuser")
         // oops! We forgot to be explicit with inheritance
         // .sync(Person.name)
 })
@@ -395,18 +395,18 @@ console.log(Person.name(p)) // Error!
 ### Example: CRM Contact Groups
 ```js
 const Contact = group({
-  name: hinj("Unnamed")
+  name: state("Unnamed")
     .sync((T, value) => console.log("Contact named:", value)),
 
-  email: hinj(),
-  phone: hinj(),
+  email: state(),
+  phone: state(),
 })
 const TaggedContact = group({
   ...Contact,
 
-  tags: hinj(() => []),
+  tags: state(() => []),
 
-  addTag: hinj().sync((T, tag) => {
+  addTag: state().sync((T, tag) => {
     const tags = TaggedContact.tags(T)
     if (!tags.includes(tag)) {
       TaggedContact.tags(T, [...tags, tag])
@@ -417,7 +417,7 @@ const SalesContact = group({
   ...TaggedContact,
 
   // Override default value
-  name: hinj("Sales Prospect")
+  name: state("Sales Prospect")
     .sync(Contact.name) // extend behavior
     .sync((T, value) => {
       if (value.includes("VIP")) {
@@ -425,9 +425,9 @@ const SalesContact = group({
       }
     }),
 
-  leadScore: hinj(0),
+  leadScore: state(0),
 
-  $registerActivity: hinj()
+  $registerActivity: state()
     .sync((T, { type }) => {
       if (type === "meeting") {
         const current = SalesContact.leadScore(T)
@@ -468,24 +468,24 @@ This is true for:
 
 - Getting properties: `Group.prop(T)`
 - Running layers: all `.sync()` and `.async()` layers receive the full context tree
-- Computed defaults: `hinj((T) => ...)` can pull values from parent(s)
+- Computed defaults: `state((T) => ...)` can pull values from parent(s)
 
 ### Example
 ```js
 const Config = group({
-  timezone: hinj("UTC"),
+  timezone: state("UTC"),
 })
 
 const Logger = group({
-  $log: hinj().sync((T, msg) => {
+  $log: state().sync((T, msg) => {
     const tz = Config.timezone(T)
     console.log(`[${tz}]`, msg)
   })
 })
 
 const Service = group({
-  logger: hinj(T => Logger(T))
-  $run: hinj().sync((T) => {
+  logger: state(T => Logger(T))
+  $run: state().sync((T) => {
     Logger.$log(Service.logger(T), "Service started")
   })
 })
@@ -527,4 +527,3 @@ would be inconsequential and backwards compatible.
 
 The additional functionality (because who doesn't like
 to have it their way?) will come as plugins.  
-

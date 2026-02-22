@@ -21,12 +21,16 @@ export function hinjs(starting = undefined) {
 
   const builder = (_this, args = undefined, remappedPointer = pointer) => {
     if (args !== undefined) {
-      _this[remappedPointer] = args;
+      // _this[remappedPointer] = args;
       if (stack) {
         const returnValue = stack(_this, args, remappedPointer);
         if (returnValue !== undefined) {
-          return _this[remappedPointer] = returnValue;
-        } 
+          return (_this[remappedPointer] = returnValue);
+        } else {
+          return (_this[remappedPointer] = args);
+        }
+      } else {
+        return (_this[remappedPointer] = args);
       }
     } else {
       // when args are undefined we are not setting, only returning
@@ -34,16 +38,24 @@ export function hinjs(starting = undefined) {
 
       if (_this[remappedPointer] === undefined) {
         if (typeof builder[STARTING_VALUE] == "function") {
-          const v = (_this[remappedPointer] = builder[STARTING_VALUE](_this));
+          const v = (builder[STARTING_VALUE](_this));
 
           if (stack) {
-            stack(_this, v, remappedPointer);
+            const returnValue = stack(_this, v, remappedPointer);
+            if (returnValue !== undefined) {
+              _this[remappedPointer] = returnValue;
+            } else {
+              _this[remappedPointer] = v;
+            }
           }
         } else if (builder[STARTING_VALUE] !== undefined) {
-          const v = (_this[remappedPointer] = builder[STARTING_VALUE]);
+          const v = builder[STARTING_VALUE];
 
-          if (stack) {
-            stack(_this, v, remappedPointer);
+          const returnValue = stack(_this, v, remappedPointer);
+          if (returnValue !== undefined) {
+            _this[remappedPointer] = returnValue;
+          } else {
+            _this[remappedPointer] = v;
           }
         }
       }
@@ -57,8 +69,9 @@ export function hinjs(starting = undefined) {
   let isAsyncMode = (builder[IS_ASYNC] = false);
 
   builder.asCmd = (isSubCommand) => {
-    const fn = isAsyncMode
-      ? (_this, args, remappedPointer = pointer) => {
+    const fn =
+      isAsyncMode ?
+        (_this, args, remappedPointer = pointer) => {
           // const startingValue =
           //     _this[HINGES_FACTORY_PROP][remappedPointer][STARTING_VALUE]
           // const startingValue = stack && stack[STARTING_VALUE]
@@ -67,9 +80,9 @@ export function hinjs(starting = undefined) {
 
           const r = stack && stack(_this, args, remappedPointer);
 
-          return r.then(() => {
+          return r.then((returnValue) => {
             if (typeof startingValue == "function") {
-              return startingValue(_this, args);
+              return startingValue(_this, returnValue !== undefined ? returnValue : args);
             } else {
               return startingValue;
             }
@@ -78,10 +91,10 @@ export function hinjs(starting = undefined) {
       : (_this, args, remappedPointer = pointer) => {
           const startingValue = !isSubCommand && builder[STARTING_VALUE];
 
-          stack && stack(_this, args, remappedPointer);
+          const returnValue = stack && stack(_this, args, remappedPointer);
 
           if (typeof startingValue == "function") {
-            return startingValue(_this, args);
+            return startingValue(_this, returnValue !== undefined ? returnValue : args);
           } else {
             return startingValue;
           }
@@ -106,11 +119,11 @@ export function hinjs(starting = undefined) {
         ...builder[HINGES_ANCESTRY_PROP],
         ...wfn[HINGES_ANCESTRY_PROP],
       ];
-    if (wfn[STARTING_VALUE] && !builder[STARTING_VALUE]) {
-      builder[STARTING_VALUE] = wfn[STARTING_VALUE];
-    }
-    
-    // wfn might be wrapped in a `group` or might be a raw `hinj`
+      if (wfn[STARTING_VALUE] && !builder[STARTING_VALUE]) {
+        builder[STARTING_VALUE] = wfn[STARTING_VALUE];
+      }
+
+      // wfn might be wrapped in a `group` or might be a raw `hinj`
       wfn = wfn[RAW_STACK] || wfn;
       if (wfn.asCmd) {
         wfn = wfn.asCmd(true); // make a subcommand
@@ -134,7 +147,11 @@ export function hinjs(starting = undefined) {
       if (isAsyncMode) {
         stack = (_t, v, p) => {
           return pfn(_t, v, p).then((returnValue) => {
-            const vNext = wfn(_t, returnValue === undefined ? v : returnValue, p);
+            const vNext = wfn(
+              _t,
+              returnValue === undefined ? v : returnValue,
+              p,
+            );
             return vNext; //=== undefined ? v : vNext
           });
         };
@@ -183,11 +200,12 @@ export function hinjs(starting = undefined) {
       // keep the reference to the stack as it is at this point of building
       const currentStack = stack;
       // existing function wrapped into Promise if needed
-      const pfn = isAsyncMode
-        ? currentStack
-        : (_t, vP, p) => {
+      const pfn =
+        isAsyncMode ? currentStack : (
+          (_t, vP, p) => {
             return Promise.resolve(currentStack(_t, vP, p));
-          };
+          }
+        );
       const next = (_t, v, p) => {
         const vNext = wfn(_t, v, p);
         if (vNext?.then) {
@@ -199,7 +217,9 @@ export function hinjs(starting = undefined) {
 
       stack = (_t, vP, p) => {
         const r = pfn(_t, vP, p);
-        return r.then((returningValue) => next(_t, returningValue === undefined ? vP : returningValue, p));
+        return r.then((returningValue) =>
+          next(_t, returningValue === undefined ? vP : returningValue, p),
+        );
       };
     }
 

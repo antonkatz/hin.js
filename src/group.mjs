@@ -17,9 +17,10 @@ import {findAncestor} from "./findAncestor.mjs";
  * @param {T} exports
  * @returns {T & function(*, *=): *}
  */
-export function group(exports) {
-  if (!exports) {
-    throw new Error('Must pass an exports object')
+export function group(...mixins) {
+
+  if (!mixins.length) {
+    throw new Error('Must pass an objects to group')
   }
 
   const objectType = Symbol(String.fromCharCode(Math.round(Math.random() * 29)) + Math.random())
@@ -34,21 +35,45 @@ export function group(exports) {
 
   caller[HINGES_TYPE_PROP] = objectType
 
-  // todo. make sure not to let exported state be set from outside
-  const liftedExports = exports && processExports(exports, objectType)
-  if (liftedExports && 'name' in liftedExports) {
-    throw new Error('`name` is a reserved keyword that cannot be exported')
-  }
+  
+  for (const mixin of mixins) {
+    let exports
+    if (mixin[HINGES_TYPE_PROP]) {
+      // these are existing groups
 
-  if (liftedExports) {
-    for (const [name, fn] of Object.entries(liftedExports)) {
-      for (const a of (fn[HINGES_ANCESTRY_PROP] || [])) {
-        caller[a] = fn[RAW_STACK]
+for (const [name, fn] of Object.entries(exports)) {
+  for (const a of fn[HINGES_ANCESTRY_PROP] || []) {
+    if (a in caller) console.warn(`State/pipe "${name}" is overwriting existing state/pipe "${a}"`)
+    caller[a] = fn[RAW_STACK];
+  }
+}
+
+} else {
+      // these are straight objects
+      // todo. make sure not to let exported state be set from outside
+      const liftedExports = mixin && processExports(mixin, objectType);
+      if (liftedExports && "name" in liftedExports) {
+        throw new Error("`name` is a reserved keyword that cannot be exported");
       }
+      // Object.assign(caller, liftedExports);
+      
+      for (const [name, fn] of Object.entries(exports)) {
+        caller[name] = fn  
+        for (const a of fn[HINGES_ANCESTRY_PROP] || []) {
+            caller[a] = fn[RAW_STACK];
+          }
+        }
     }
-  }
 
-  return liftedExports && Object.assign(caller, liftedExports) || caller
+
+      if (exports) {
+        
+      }
+
+      
+  } 
+
+  return caller
 }
 
 function processExports(exports, ofType) {
@@ -56,6 +81,13 @@ function processExports(exports, ofType) {
       Object.entries(exports)
           .map(([k, v]) => {
             if (v[RAW_STACK]) return [k, v]
+
+            // static functions aren't hinjs
+            const isStatic = k.startsWith("_");
+            if (isStatic) {
+              if (v[RAW_STACK]) throw new Error('Static functions cannot be state() or pipe()')
+              return [k, v]
+            }
 
             const isCommand = k.startsWith('$')
 
@@ -79,7 +111,11 @@ function processExports(exports, ofType) {
 
             }
 
-            fn[RAW_STACK] = isCommand ? v.asCmd() : v
+            fn[RAW_STACK] = isCommand ? (v.asCmd && v.asCmd()) : v
+            if (isCommand && !v.asCmd && ) {
+
+            }
+
             fn[HINJ_NAME] = k
             fn[HINGES_ANCESTRY_PROP] = v[HINGES_ANCESTRY_PROP]
             fn[ACCESSOR] = v[ACCESSOR]

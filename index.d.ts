@@ -13,3 +13,5 @@ export function group<T extends object>(exports: T): T & {
 
 type Hinjs = Hinj
 export function hinjs(starting?: any): Hinjs
+export function state(starting?: any): Hinjs
+export function pipe(starting?: any): Hinjs
