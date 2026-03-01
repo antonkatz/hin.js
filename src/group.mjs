@@ -112,8 +112,8 @@ function processExports(exports, ofType) {
             }
 
             fn[RAW_STACK] = isCommand ? (v.asCmd && v.asCmd()) : v
-            if (isCommand && !v.asCmd && ) {
-
+            if ((isCommand && !v.asCmd && !v[IS_PIPE]) || (!isCommand && v[IS_PIPE])) {
+              throw new Error('Commands must be marked with $')
             }
 
             fn[HINJ_NAME] = k

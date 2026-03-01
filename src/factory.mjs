@@ -103,7 +103,7 @@ const pipeBody = (isSubCommand) => {
   return builder;
 };
 
-export const hinjs = factory(stateBody);
+export const state = factory(stateBody);
 export const pipe = factory(pipeBody);
 
 function factory(builderPrototype, plugins = {}) {
