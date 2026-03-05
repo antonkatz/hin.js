@@ -16,9 +16,9 @@ import {
  */
 let pi = 0;
 
-const stateBody =
-  () =>
-  (_this, args = undefined, remappedPointer = pointer) => {
+const stateBody = () => {
+  const builder = (_this, args = undefined, remappedPointer) => {
+    if (!remappedPointer) remappedPointer = builder[ACCESSOR];
     if (args !== undefined) {
       // _this[remappedPointer] = args;
       if (stack) {
@@ -60,10 +60,13 @@ const stateBody =
       }
       return _this[remappedPointer];
     }
-  };
+  }
+  return builder
+};
 
 const pipeBody = (isSubCommand) => {
-  const builder = (_this, args, remappedPointer = pointer) => {
+  const builder = (_this, args, remappedPointer) => {
+    if (!remappedPointer) remappedPointer = builder[ACCESSOR]
     if (builder[IS_ASYNC]) {
       // const startingValue =
       //     _this[HINGES_FACTORY_PROP][remappedPointer][STARTING_VALUE]
@@ -106,12 +109,12 @@ const pipeBody = (isSubCommand) => {
 export const state = factory(stateBody);
 export const pipe = factory(pipeBody);
 
-function factory(builderPrototype, plugins = {}) {
-  const builder = builderPrototype();
-
+function factory(builderPrototype, plugins) {
   return function (starting = undefined) {
+    const builder = builderPrototype();
     const pointer = Symbol(pi++);
-    let stack = null;
+    // let stack = null;
+    let stack = builder()
 
     builder[STARTING_VALUE] = starting;
     builder[ACCESSOR] = pointer;
@@ -119,8 +122,10 @@ function factory(builderPrototype, plugins = {}) {
 
     let isAsyncMode = (builder[IS_ASYNC] = false);
 
-    for (const [name, fn] of Object.entries(plugins)) {
-      builder[name] = fn;
+    if (plugins) {
+      for (const [name, fn] of Object.entries(plugins)) {
+        builder[name] = fn;
+      }
     }
 
     builder.sync = (wfn) => {

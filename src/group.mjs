@@ -43,11 +43,11 @@ export function group(...mixins) {
     if (mixin[HINGES_TYPE_PROP]) {
       // these are existing groups
 
-      for (const [name, fn] of Object.entries(exports)) {
+      for (const [name, fn] of Object.entries(mixin)) {
         for (const a of fn[HINGES_ANCESTRY_PROP] || []) {
           if (a in caller)
             console.warn(
-              `State/pipe "${name}" is overwriting existing state/pipe "${a}"`,
+              `State/pipe "${name}" is overwriting existing state/pipe`, a,
             );
           caller[a] = fn[RAW_STACK];
         }
@@ -61,7 +61,7 @@ export function group(...mixins) {
       }
       // Object.assign(caller, liftedExports);
 
-      for (const [name, fn] of Object.entries(exports)) {
+      for (const [name, fn] of Object.entries(liftedExports)) {
         caller[name] = fn;
         for (const a of fn[HINGES_ANCESTRY_PROP] || []) {
           caller[a] = fn[RAW_STACK];
@@ -69,8 +69,8 @@ export function group(...mixins) {
       }
     }
 
-    if (exports) {
-    }
+    // if (exports) {
+    // }
   }
 
   return caller;
@@ -110,12 +110,12 @@ function processExports(exports, ofType) {
         // }
       };
 
-      fn[RAW_STACK] = isCommand ? v.asCmd && v.asCmd() : v;
+      fn[RAW_STACK] = isCommand ? (v.asCmd && v.asCmd() || v) : v;
       if (
         (isCommand && !v.asCmd && !v[IS_PIPE]) ||
         (!isCommand && v[IS_PIPE])
       ) {
-        throw new Error("Commands must be marked with $");
+        throw new Error("Pipes must be marked with $");
       }
 
       fn[HINJ_NAME] = k;
