@@ -79,6 +79,14 @@ export function group(...mixins) {
 function processExports(exports, ofType) {
   const liftedExports = Object.fromEntries(
     Object.entries(exports).map(([k, v]) => {
+      const isCommand = k.startsWith("$");
+      if (
+        (isCommand && !v[IS_PIPE]) ||
+        (!isCommand && v[IS_PIPE])
+      ) {
+        throw new Error("Pipes must be marked with $");
+      }
+
       if (v[RAW_STACK]) return [k, v];
 
       // static functions aren't hinjs
@@ -89,7 +97,6 @@ function processExports(exports, ofType) {
         return [k, v];
       }
 
-      const isCommand = k.startsWith("$");
 
       if (!v[HINGES_TYPE_PROP]) {
         v[HINGES_TYPE_PROP] = ofType;
@@ -101,23 +108,11 @@ function processExports(exports, ofType) {
         const _this = !!_stack ? T : findAncestor(T, pointer);
 
         const stack = _stack || _this[HINGES_FACTORY_PROP][pointer];
-
-        // if (isCommand) {
-        // if (args === undefined) throw new Error('Must pass arguments or `null` to command')
-        // return stack.cmd(_this, args, pointer)
-        // } else {
         return stack(_this, args);
-        // }
       };
 
-      fn[RAW_STACK] = isCommand ? (v.asCmd && v.asCmd() || v) : v;
-      if (
-        (isCommand && !v.asCmd && !v[IS_PIPE]) ||
-        (!isCommand && v[IS_PIPE])
-      ) {
-        throw new Error("Pipes must be marked with $");
-      }
 
+      fn[RAW_STACK] = isCommand ? (v.asCmd && v.asCmd()) || v : v;
       fn[HINJ_NAME] = k;
       fn[HINGES_ANCESTRY_PROP] = v[HINGES_ANCESTRY_PROP];
       fn[ACCESSOR] = v[ACCESSOR];
