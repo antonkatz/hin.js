@@ -1,12 +1,10 @@
 import { ACCESSOR, STARTING_VALUE } from "./consts.mjs";
 
 export const stateBody = (stack) => {
-      const remappedPointer = stack[ACCESSOR];
+  const remappedPointer = stack[ACCESSOR];
 
   return (_this, args = undefined) => {
-    // if (!remappedPointer) remappedPointer = builder[ACCESSOR];
     if (args !== undefined) {
-      // _this[remappedPointer] = args;
       if (stack) {
         const returnValue = stack(_this, args, remappedPointer);
         if (returnValue !== undefined) {
