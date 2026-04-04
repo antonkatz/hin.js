@@ -18,28 +18,35 @@ import { stateBody } from "./stateBody.mjs";
 let pi = 0;
 
 export const state = (starting) => {
-    const stack = factory()
+    const stack = factory(starting)
+    const state = stateBody(stack);
 
-    const state = stateBody(stack, starting)
     // state[RAW_STACK] = stack
     state[HINGES_ANCESTRY_PROP] = stack[HINGES_ANCESTRY_PROP]
     state[ACCESSOR] = stack[ACCESSOR]
     // state[STARTING_VALUE] = starting;
+    
+    for (const prop of ['sync', 'async']) {
+      state[prop] = stack[prop];
+    }
+    return state
 }
-export const pipe = () => {
-  const pipe = factory()
+export const pipe = (defaultArgs) => {
+  // const body = (stack) => stack && stack()
+  const pipe = factory(defaultArgs)
   // pipe[RAW_STACK] = stack
   pipe[IS_PIPE] = true
   return pipe
 }
 
-function factory(plugins) {
+function factory(startingValue, plugins = {}) {
     // const builder = builderPrototype();
+    let stack = () => {};
     const pointer = Symbol(pi++);
-    const builder = () => stack();
-    let stack = null;
+    const builder = (T, v, p) => stack(T,v,p);
     // let stack = builder()
 
+    if (startingValue) builder[STARTING_VALUE] = startingValue;
     builder[ACCESSOR] = pointer;
     builder[HINGES_ANCESTRY_PROP] = [pointer];
 

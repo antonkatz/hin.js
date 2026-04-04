@@ -1,9 +1,10 @@
 import { ACCESSOR, STARTING_VALUE } from "./consts.mjs";
 
+
 export const stateBody = (stack) => {
   const remappedPointer = stack[ACCESSOR];
 
-  return (_this, args = undefined) => {
+  const state = (_this, args = undefined) => {
     if (args !== undefined) {
       if (stack) {
         const returnValue = stack(_this, args, remappedPointer);
@@ -19,8 +20,8 @@ export const stateBody = (stack) => {
       // when args are undefined we are not setting, only returning
       // unless there is a starting value which gets run through the chain once
       if (_this[remappedPointer] === undefined) {
-        if (typeof builder[STARTING_VALUE] == "function") {
-          const v = builder[STARTING_VALUE](_this);
+        if (typeof stack[STARTING_VALUE] == "function") {
+          const v = stack[STARTING_VALUE](_this);
 
           if (stack) {
             const returnValue = stack(_this, v, remappedPointer);
@@ -30,8 +31,8 @@ export const stateBody = (stack) => {
               _this[remappedPointer] = v;
             }
           }
-        } else if (builder[STARTING_VALUE] !== undefined) {
-          const v = builder[STARTING_VALUE];
+        } else if (stack[STARTING_VALUE] !== undefined) {
+          const v = stack[STARTING_VALUE];
 
           const returnValue = stack(_this, v, remappedPointer);
           if (returnValue !== undefined) {
@@ -44,4 +45,55 @@ export const stateBody = (stack) => {
       return _this[remappedPointer];
     }
   };
+
+  return state;
 };
+
+
+// export const stateBody = (stack) => {
+//   const remappedPointer = stack[ACCESSOR];
+
+//   const state = (_this, args = undefined) => {
+//     if (args !== undefined) {
+//       if (stack) {
+//         const returnValue = stack(_this, args, remappedPointer);
+//         if (returnValue !== undefined) {
+//           return (_this[remappedPointer] = returnValue);
+//         } else {
+//           return (_this[remappedPointer] = args);
+//         }
+//       } else {
+//         return (_this[remappedPointer] = args);
+//       }
+//     } else {
+//       // when args are undefined we are not setting, only returning
+//       // unless there is a starting value which gets run through the chain once
+//       if (_this[remappedPointer] === undefined) {
+//         if (typeof builder[STARTING_VALUE] == "function") {
+//           const v = builder[STARTING_VALUE](_this);
+
+//           if (stack) {
+//             const returnValue = stack(_this, v, remappedPointer);
+//             if (returnValue !== undefined) {
+//               _this[remappedPointer] = returnValue;
+//             } else {
+//               _this[remappedPointer] = v;
+//             }
+//           }
+//         } else if (builder[STARTING_VALUE] !== undefined) {
+//           const v = builder[STARTING_VALUE];
+
+//           const returnValue = stack(_this, v, remappedPointer);
+//           if (returnValue !== undefined) {
+//             _this[remappedPointer] = returnValue;
+//           } else {
+//             _this[remappedPointer] = v;
+//           }
+//         }
+//       }
+//       return _this[remappedPointer];
+//     }
+//   };
+
+//   return state;
+// };
