@@ -14,5 +14,5 @@ export function group<T extends object>(
 ): {
   (P?: Instance): Instance;
 };
-export function state(starting?: any): Hinjs
-export function pipe(): Hinjs
+export function state(starting?: any): Hinj
+export function pipe(starting?: any): Hinj

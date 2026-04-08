@@ -6,7 +6,7 @@ States and $Pipes. Reactive Classes and Dependency Injection.
 
 <sub>* *Hin.JS* comes from a [lineage of experimental frameworks](#lineage) inspired by F# and is pure vanilla JavaScript!</sub>
 
-## In just 5 methods you get: 
+## You get: 
 - **Type Safety** without the TypeScript Tax
 - **Dependency Injection** without the hassle
 - **Reactive state management** that is safe and traceable
@@ -70,7 +70,7 @@ count: state().sync((T, value) => console.log("Updated:", value))
 - Has 0 or 1 parameters (`value` in the above example). Mimic multiple parameters by passing an object.
 - Best for logging, side effects, event dispatching
 
-⚠️ The return value of the layer `fn` defined as `.sync(fn)` is ignored.
+✅ If `fn` returns a value other than `undefined`, that value is passed as the input to the next `.sync()`/`.async()` layer.
 
 #### `.async(fn)`
 ```js
@@ -83,7 +83,10 @@ count: state().async(async (T, value) => {
 - Has 0 or 1 parameters (`value` in the above example). Mimic multiple parameters by passing an object.
 - Best for: async validation, saving to a database, calling APIs
 
-⚠️ The returned Promise is awaited, but its resolved value is discarded.
+✅ The returned Promise is awaited, and if it resolves to a value other than `undefined`, that value is passed as the input to the next `.sync()`/`.async()` layer.
+
+Execution order is the same for both stateful properties and stateless pipes:
+> Default (if unset) -> `sync` / `async` layers in declaration order
 
 
 ## Basic Example
@@ -96,7 +99,7 @@ const Database = group({
   sql: state(
       /* setting lazy, default value */ 
       T => {
-        const url = Database.connectUrl(T)
+        const url = Database.connectionUrl(T)
         // if using postgres library
         return postgres(url)
   }),
@@ -148,7 +151,7 @@ When a setter is executed (or a getter is called and a default value is set) the
 
 > Default (if unset) → `sync` and `async` layers in the order that they are defined.  
 
-Default values are evaluated first. Then sync() and async() layers run as a result of setting the value. If a getter is called when no value is set, and the default value is used, all the layers are executed before the (default) value is returned. **The most recently set value is cached and returned on read**.
+Default values are evaluated first. Then sync() and async() layers run as a result of setting the value. If a getter is called when no value is set, and the default value is used, all the layers are executed before the value is returned. Layer return values are chained: each layer receives the previous layer's returned value when it is not `undefined` (otherwise it receives the prior input unchanged). For stateful properties, the last non-`undefined` returned value becomes the stored state. **The most recently stored value is cached and returned on read**.
 
 ```js
 import { group, state } from "hin.js"
@@ -193,12 +196,10 @@ Layer 3 (sync): hello
 
 These **do not** store values — they are often used for pipes or triggers. A pipe must have its name (key in the object passed to `group()`) start with `$`.
 
-They run in the reverse order:
-> sync() / async() layers → Default/Return value (if any)
+Pipes use the same execution order as stateful properties:
+> Default (if unset) -> `sync` / `async` layers in declaration order
 
-This reversal is subtle yet important when the default is a function.
-
-The default is used as a **return value**, not as the initial value to store. This means you can model "pure functions" using stateless pipe — like `() => result`.
+The key difference is persistence: pipes do not store state. The last non-`undefined` returned value from the layer chain becomes the return value of the pipe call.
 
 ```js
 import { group, state } from "hin.js"
@@ -227,7 +228,7 @@ const Invoice = group({
 
   currency: state("USD"),
 
-  $convertInvoiceTotals: state((T, { from, to }) => {
+  $convertInvoiceTotals: pipe((T, { from, to }) => {
     const items = Invoice.lineItems(T)
     const rate = CurrencyAPI.rate(T)
 
@@ -279,15 +280,15 @@ Summary: {
 
 ### ⚠️ Why This Matters
 
-If your default is a function that should produce input to the rest of the chain (e.g., computed state), use a stateful property.
+Both stateful properties and stateless pipes now start by resolving the default value, then run the same layer chain.
 
-If your default is meant to be the final output (like a return value), use a stateless pipe.
+Choose based on persistence: stateful properties store the final non-`undefined` chain result; stateless pipes return the final non-`undefined` chain result without storing it.
 
 | Feature          | **Stateful**                  | **Stateless**             |
 | ---------------- | ----------------------------- | ------------------------- |
 | Stores a value?  | ✅ Yes                         | ❌ No                      |
 | Used for…        | Reactive state, configuration | Actions, computed values  |
-| Execution order  | `default → sync / async`      | `sync / async → default/return value`  |
+| Execution order  | `default -> sync / async`      | `default -> sync / async`  |
 | Memoized output? | ✅ Yes              | ❌ No                      |
 | Access pattern   | `Group.prop(T)`               | `Group.$pipe(T, [input])` |
 | Closest analogy  | State variable                | Pure function / pipe    |
@@ -427,7 +428,7 @@ const SalesContact = group({
 
   leadScore: state(0),
 
-  $registerActivity: state()
+  $registerActivity: pipe()
     .sync((T, { type }) => {
       if (type === "meeting") {
         const current = SalesContact.leadScore(T)
@@ -484,7 +485,7 @@ const Logger = group({
 })
 
 const Service = group({
-  logger: state(T => Logger(T))
+  logger: state(T => Logger(T)),
   $run: state().sync((T) => {
     Logger.$log(Service.logger(T), "Service started")
   })
