@@ -2,9 +2,9 @@
 ![image](readme-header.png)
 **A minimalist framework for building prototypes that scale using articulating components**
 
-States and $Pipes.
+States and $Pipes. Reactive Classes and Dependency Injection. 
 
-<sub>* *Hin.JS* comes from a [lineage of experimental frameworks](#lineage) inspired by F# and is pure vanilla JavaScript!
+<sub>* *Hin.JS* comes from a [lineage of experimental frameworks](#lineage) inspired by F# and is pure vanilla JavaScript!</sub>
 
 ## In just 5 methods you get: 
 - **Type Safety** without the TypeScript Tax
@@ -35,7 +35,7 @@ States and $Pipes.
 All properties are defined using `state()`.
 ```js
 const MyGroup = group({
-  prop: state("default")
+  property: state("default")
 })
 ```
 - Instantiating: `const g = MyGroup()`
